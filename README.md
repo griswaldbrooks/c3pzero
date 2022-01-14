@@ -1,9 +1,6 @@
 # c3pzero
 Monorepo for c3pzero mobile base.
 
-# c3pzero
-Monorepo for c3pzero mobile base.
-
 ## Getting started
 On host
 ```
