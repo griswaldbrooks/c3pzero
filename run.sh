@@ -13,6 +13,7 @@ docker run -it \
   -e ROS_DOMAIN_ID=89 \
   --privileged \
   --device=/dev/ttyUSB0 \
+  --device=/dev/ttyACM0 \
   -e XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
   --net=host \
   c3pzero-dev \
