@@ -30,15 +30,8 @@ def generate_launch_description():
     spawn_entity = launch_ros.actions.Node(
     	package='gazebo_ros',
     	executable='spawn_entity.py',
-        arguments=['-entity', 'sam_bot', '-topic', 'robot_description'],
+        arguments=['-entity', 'c3pzero', '-topic', 'robot_description', '-z 0.75'], # drop the robot from high up so it's not collided with the floor
         output='screen'
-    )
-    robot_localization_node = launch_ros.actions.Node(
-         package='robot_localization',
-         executable='ekf_node',
-         name='ekf_filter_node',
-         output='screen',
-         parameters=[os.path.join(pkg_share, 'config/ekf.yaml'), {'use_sim_time': LaunchConfiguration('use_sim_time')}]
     )
 
     return launch.LaunchDescription([
@@ -55,6 +48,5 @@ def generate_launch_description():
         joint_state_publisher_node,
         robot_state_publisher_node,
         spawn_entity,
-        robot_localization_node,
         rviz_node
     ])
