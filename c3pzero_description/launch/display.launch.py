@@ -5,7 +5,7 @@ import os
 
 def generate_launch_description():
     pkg_share = launch_ros.substitutions.FindPackageShare(package='c3pzero_description').find('c3pzero_description')
-    default_model_path = os.path.join(pkg_share, 'src/description/c3pzero_description.urdf')
+    default_model_path = os.path.join(pkg_share, 'urdf/c3pzero_description.urdf')
     default_rviz_config_path = os.path.join(pkg_share, 'rviz/urdf_config.rviz')
     world_path=os.path.join(pkg_share, 'world/my_world.sdf')
 
