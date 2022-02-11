@@ -1,5 +1,6 @@
 from nav_msgs.msg import Odometry
 from tf_transformations import quaternion_from_euler
+from math import cos, sin
 
 
 class DiffDriveOdom:
@@ -21,7 +22,7 @@ class DiffDriveOdom:
         wheel_l = position[0] - self._last_position[0]
         wheel_r = position[1] - self._last_position[1]
         delta_s = self._radius * (wheel_r + wheel_l) / 2.0
-        theta = self._radius * (wheel_r + wheel_l) / self._separation
+        theta = self._radius * (wheel_r - wheel_l) / self._separation
         self._robot_pose = (
             self._robot_pose[0] + delta_s * cos(self._robot_pose[2] + (theta / 2.0)),
             self._robot_pose[1] + delta_s * sin(self._robot_pose[2] + (theta / 2.0)),
@@ -33,17 +34,17 @@ class DiffDriveOdom:
         self._last_time = now
 
         msg = Odometry()
-        msg.header.frame_id = self._frame_id
-        msg.header.child_frame_id = self._child_frame_id
-        msg.header.stamp = now
+        msg.header.frame_id = self._frame_id  
+        msg.header.stamp = now.to_msg()
+        msg.child_frame_id = self._child_frame_id
         msg.pose.pose.position.x = self._robot_pose[0]
         msg.pose.pose.position.y = self._robot_pose[1]
-        msg.pose.pose.position.z = 0
+        msg.pose.pose.position.z = 0.0
         msg.pose.pose.orientation.x = q[0]
         msg.pose.pose.orientation.y = q[1]
         msg.pose.pose.orientation.z = q[2]
         msg.pose.pose.orientation.w = q[3]
-        msg.twist.twist.linear.x = delta_s / time_step
-        msg.twist.twist.angular.z = theta / time_step
+        msg.twist.twist.linear.x = delta_s / (time_step.nanoseconds * 1e9)
+        msg.twist.twist.angular.z = theta / (time_step.nanoseconds * 1e9)
 
         return msg

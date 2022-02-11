@@ -16,15 +16,26 @@ import rclpy
 from rclpy.node import Node
 
 from . import roboclaw_3
+from . import diff_drive_odom
 
 from geometry_msgs.msg import Twist
+
+import math
+
+from pprint import pprint
 
 
 class RoboclawTwistSubscriber(Node):
 
     def __init__(self):
         super().__init__('roboclaw_twist_subscriber')
+
         cmd_vel_topic = 'c3pzero/cmd_vel'
+        self.wheel_radius = 0.1715 # meters
+        self.wheel_circumference = 2 * math.pi * self.wheel_radius # meters
+        self.ppr = 11600 # pulses per wheel revolution
+        self.wheel_track = 0.54 # y distance between left and righ wheel
+
         self.subscription = self.create_subscription(
             Twist,
             cmd_vel_topic,
@@ -44,28 +55,69 @@ class RoboclawTwistSubscriber(Node):
         else:
             self.get_logger().info('Roboclaw version: %s' % repr(version[1]))
         
+        self.diff_drive_odom = diff_drive_odom.DiffDriveOdom(self.get_clock(), self.wheel_track, self.wheel_radius)
         self.create_timer(0.02, self.odom_callback)
 
         self.get_logger().info('Init complete, listening for twist commands on topic: %s' % cmd_vel_topic)
 
     def twist_listener_callback(self, msg):
-        # self.get_logger().info('X_vel: %f, Z_rot: %f' % msg.linear.x, msg.angular.z)
+        # self.get_logger().info('X_vel: %f, Z_rot: %f' % (0.4*msg.linear.x, msg.angular.z))
 
-        right_wheel = 0.4*msg.linear.x + (msg.angular.z * .54)/2
-        left_wheel = 0.4*msg.linear.x - (msg.angular.z * .54)/2
-        print(int(18000 * right_wheel))
-        self.rc.SpeedM1(self.rc_address, int(18000 * right_wheel))
-        self.rc.SpeedM2(self.rc_address, int(18000 * left_wheel))
+        right_wheel = 0.4*msg.linear.x + (msg.angular.z * self.wheel_track)/2 # meters / sec
+        left_wheel  = 0.4*msg.linear.x - (msg.angular.z * self.wheel_track)/2
+
+        wheel_cmds = self.mps_to_pps((right_wheel, left_wheel))
+        self.rc.SpeedM1(self.rc_address, wheel_cmds[0])
+        self.rc.SpeedM2(self.rc_address, wheel_cmds[1])
 
     def odom_callback(self):
-        right_wheel_enc = self.rc.ReadEncM1(self.rc_address)
-        # print(right_wheel_enc[1])
-        left_wheel_enc  = self.rc.ReadEncM2(self.rc_address)
-        right_wheel_speed = self.rc.ReadSpeedM1(self.rc_address)
-        left_wheel_speed  = self.rc.ReadSpeedM2(self.rc_address)
-        # print(left_wheel_speed)
+        """
+        the roboclaw returns the encoder position and velocity in a tuple
+        the first value is if the read was successful
+        the second value is the result (position pulses or rate)
+        the third value is ???
+        """
 
-        self.get_logger().info('Pos: %i, %i, Vel: %i, %i' % (right_wheel_enc[1], left_wheel_enc[1], right_wheel_speed[1], left_wheel_speed[1]))
+        right_wheel_enc = self.rc.ReadEncM1(self.rc_address)
+        left_wheel_enc  = self.rc.ReadEncM2(self.rc_address)
+        # if reading the wheel velocities was unsuccessful return
+        if(right_wheel_enc[0] == 0 | right_wheel_enc[0] == 0):
+            self.get_logger().error('Failed retriving the Roboclaw wheel positions')
+            return
+
+        right_wheel_pps = self.rc.ReadSpeedM1(self.rc_address) # pulses per second.
+        left_wheel_pps  = self.rc.ReadSpeedM2(self.rc_address)
+        # if reading the wheel velocities was unsuccessful return
+        if(right_wheel_pps[0] == 0 | left_wheel_pps[0] == 0):
+            self.get_logger().error('Failed retriving the Roboclaw wheel velocities')
+            return
+
+        # convert the wheel positions to radians
+        wheel_pos = self.enc_to_rad((right_wheel_enc[1], left_wheel_enc[1]))
+        # convert the wheel speeds to meters / sec
+        wheel_speed = self.pps_to_mps((right_wheel_pps[1], left_wheel_pps[1]))
+
+        odom_msg = self.diff_drive_odom.step(wheel_pos, wheel_speed)
+        pprint(odom_msg.pose.pose.position)
+
+
+        # self.get_logger().info('Vel: %f, %f' % wheel_speed)
+
+    def mps_to_pps(self, wheel_speed):
+        right_wheel_pluses = int(wheel_speed[0] / self.wheel_circumference * self.ppr)
+        left_wheel_pluses  = int(wheel_speed[1] / self.wheel_circumference * self.ppr)
+        return (right_wheel_pluses, left_wheel_pluses)
+    
+    def enc_to_rad(self, wheel_pluses):
+        right_wheel_pos = wheel_pluses[0] / self.ppr * self.wheel_circumference
+        left_wheel_pos  = wheel_pluses[1] / self.ppr * self.wheel_circumference
+        return (right_wheel_pos, left_wheel_pos)
+    
+    def pps_to_mps(self, wheel_pluses_per_sec):
+        right_wheel_speed = wheel_pluses_per_sec[0] / self.ppr * self.wheel_circumference
+        left_wheel_speed  = wheel_pluses_per_sec[1]  / self.ppr * self.wheel_circumference
+        return (right_wheel_speed, left_wheel_speed)
+
 
 def main(args=None):
     rclpy.init(args=args)
