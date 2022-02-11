@@ -197,7 +197,7 @@
   <gazebo>
     <plugin name='diff_drive' filename='libgazebo_ros_diff_drive.so'>
       <ros>
-        <namespace>/c3pzero</namespace>
+        <namespace>c3pzero_driver</namespace>
       </ros>
 
       <!-- wheels -->
