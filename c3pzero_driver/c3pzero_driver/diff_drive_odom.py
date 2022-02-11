@@ -13,14 +13,25 @@ class DiffDriveOdom:
         self._last_position = (0, 0)
         self._last_time = self._clock.now()
         self._robot_pose = (0, 0, 0)
+        self._first = True
+
+    def _get_diff(self, position):
+        if self._first:
+            self._first = False
+            self._last_position = position
+        diff = (
+            position[0] - self._last_position[0],
+            position[1] - self._last_position[1],
+        )
+        self._last_position = position
+        return diff
 
     def step(self, position, velocity):
         # position is radians tuple (l, r)
         # velocity is m/s tuple (l, r)
         now = self._clock.now()
         time_step = now - self._last_time
-        wheel_l = position[0] - self._last_position[0]
-        wheel_r = position[1] - self._last_position[1]
+        wheel_l, wheel_r = self._get_diff(position)
         delta_s = self._radius * (wheel_r + wheel_l) / 2.0
         theta = self._radius * (wheel_r - wheel_l) / self._separation
         self._robot_pose = (
@@ -30,11 +41,10 @@ class DiffDriveOdom:
         )
         q = quaternion_from_euler(0.0, 0.0, self._robot_pose[2])
 
-        self._last_position = position
         self._last_time = now
 
         msg = Odometry()
-        msg.header.frame_id = self._frame_id  
+        msg.header.frame_id = self._frame_id
         msg.header.stamp = now.to_msg()
         msg.child_frame_id = self._child_frame_id
         msg.pose.pose.position.x = self._robot_pose[0]
