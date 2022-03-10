@@ -155,7 +155,6 @@
     <origin xyz="${-caster_xoff} 0.193 ${-(base_height/2)}" rpy="0 0 0"/>
   </joint>
 
-  ----
   <link name="lr_caster">
     <visual>
       <geometry>

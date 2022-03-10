@@ -5,6 +5,7 @@ import os
 
 def generate_launch_description():
     pkg_share = launch_ros.substitutions.FindPackageShare(package='c3pzero_description').find('c3pzero_description')
+    nav_share = launch_ros.substitutions.FindPackageShare(package='c3pzero_navigation2').find('c3pzero_navigation2')
     default_model_path = os.path.join(pkg_share, 'urdf/c3pzero_description.urdf')
     default_rviz_config_path = os.path.join(pkg_share, 'rviz/urdf_config.rviz')
     world_path=os.path.join(pkg_share, 'world/my_world.sdf')
@@ -34,6 +35,14 @@ def generate_launch_description():
         output='screen'
     )
 
+    robot_localization_node = launch_ros.actions.Node(
+       package='robot_localization',
+       executable='ekf_node',
+       name='ekf_filter_node',
+       output='screen',
+       parameters=[os.path.join(nav_share, 'param/ekf.yaml'), {'use_sim_time': LaunchConfiguration('use_sim_time')}]
+    )
+
     return launch.LaunchDescription([
         launch.actions.DeclareLaunchArgument(name='gui', default_value='True',
                                             description='Flag to enable joint_state_publisher_gui'),
@@ -48,5 +57,6 @@ def generate_launch_description():
         joint_state_publisher_node,
         robot_state_publisher_node,
         spawn_entity,
+        robot_localization_node,
         rviz_node
     ])
